@@ -11,10 +11,11 @@
 [ActiveSupport](https://guides.rubyonrails.org/active_support_core_extensions.html)**
 — faithful to MRI down to byte-for-byte output, with **no Ruby runtime**.
 
-ActiveSupport is enormous. This is the **v0.1 foundation**: the self-contained,
-highest-value core that most other gems depend on — the **Inflector** and the
-**core-extension helpers** — with the rest explicitly deferred and roadmapped
-below. It is the ActiveSupport backend for
+ActiveSupport is enormous. It began as a self-contained core (the **Inflector**
+and the **core-extension helpers**) and now also ships the **object-model**,
+**time**, **instrumentation/data** and **number** subsystems documented below —
+each pure-Go, 100%-covered, and validated byte-for-byte against the
+`activesupport` gem. It is the ActiveSupport backend for
 [go-embedded-ruby](https://github.com/go-embedded-ruby/ruby), but is a
 **standalone, reusable** module — a sibling of
 [go-ruby-set](https://github.com/go-ruby-set/set),
@@ -103,6 +104,69 @@ coreext.DeepMerge(h1, h2)                       // recursive hash merge
 coreext.Blank(nil)                              // true
 ```
 
+### `duration` — `ActiveSupport::Duration`
+
+Single-unit constructors (`Years`…`Seconds`), `Build` decomposition, humanised
+`Inspect` (`"1 year, 2 months, and 3 days"`), ISO 8601 `Iso8601`/`Parse` (with
+Rails' exact validation — weeks may not mix with other date parts, only the last
+part may be fractional), part-preserving arithmetic (`Add`/`Sub`/`Mul`/`Neg`),
+`Cmp`/`Equal`, the `In<Unit>` conversions, and calendar-aware `Since`/`Ago`.
+
+```go
+duration.Days(1).Add(duration.Hours(2)).Inspect() // "1 day and 2 hours"
+duration.Hours(1.5).Iso8601()                     // "PT1.5H"
+d, _ := duration.Parse("P1Y2M3DT4H5M6S")          // full ISO 8601 parse
+```
+
+### `numberhelper` — `ActiveSupport::NumberHelper`
+
+`NumberToDelimited`/`Rounded`/`Percentage`/`Currency`/`HumanSize`/`Human`/`Phone`.
+Decimal rounding runs on `math/big` rationals (not binary floats) so every
+BigDecimal round mode (`half_up`/`half_even`/`half_down`/`up`/`down`/`ceiling`/
+`floor`), significant-digit precision and strip-insignificant-zeros behave
+exactly like Rails, including the invalid-input passthrough (`"$abc"`).
+
+```go
+numberhelper.NumberToCurrency(1234567890.50)                    // "$1,234,567,890.50"
+numberhelper.NumberToHuman(1234567)                             // "1.23 Million"
+numberhelper.NumberToRounded(1234.5678, numberhelper.Options{
+    Precision:   numberhelper.IntPtr(2),
+    Significant: numberhelper.BoolPtr(true),
+}) // "1200"
+```
+
+### `inquirer` — `StringInquirer` / `ArrayInquirer`
+
+Ruby's `method_missing` `"<name>?"` predicate becomes an explicit `Is(name)`;
+`ArrayInquirer#any?` becomes `Any(candidates...)`.
+
+### `hwia` — `HashWithIndifferentAccess` + `OrderedOptions`
+
+String-keyed, insertion-ordered, with recursive nested-hash conversion (including
+`map[any]any` and arrays of hashes); `Get`/`Set`/`Fetch`/`Delete`/`KeyQ`/`Merge`/
+`Update`/`Dup`/`Slice`/`Except`/`ValuesAt`/`ToHash`, plus `OrderedOptions` with
+its blank-raising bang accessor.
+
+### `notifications` — `ActiveSupport::Notifications`
+
+An instrumentation bus: `Instrument(name, payload, block)` publishing an `Event`
+(`Start`/`Finish`/`Duration`/`TransactionID`) to subscribers matched by `Exact`
+name, `Pattern` (regexp) or `All`; `Unsubscribe` and scoped `Subscribed`. The
+event is published even when the block panics, matching Rails' ensure semantics.
+
+### `cache` — `ActiveSupport::Cache::MemoryStore`
+
+Concurrency-safe in-memory cache: `Read`/`Write`/`Exist`/`Delete`, `Fetch`
+(compute-on-miss + `Force`), `Increment`/`Decrement` (zero-initialising,
+expiry-preserving), `Clear`, `Cleanup`, and the `*Multi` variants. Per-entry
+expiry is driven by an injectable clock.
+
+### `callbacks` — `ActiveSupport::Callbacks`
+
+`Before`/`After`/`Around` chains run around a block with Rails' exact ordering
+(befores in order, arounds nested first-outermost, afters in reverse) and halt
+semantics (a `Before` returning false = `throw :abort`).
+
 ## Fidelity basis
 
 Every shipped surface is validated against **MRI Ruby with the `activesupport`
@@ -124,17 +188,21 @@ cross-arch lanes still pass the gate.
 
 ## Roadmap — deferred subsystems
 
-v0.1 is deliberately the self-contained core. The following are **planned for
-later phases** and are **not** in this release:
+The following are **still** deferred (they need the Ruby object model / method
+dispatch, or large i18n/locale/crypto surfaces that no pure-Go core can honestly
+claim yet), and are called out explicitly rather than half-shipped:
 
-- **Phase 2 — object model**: `Concern`, `callbacks`, `delegate`, `Configurable`,
-  `HashWithIndifferentAccess`, `StringInquirer`/`ArrayInquirer`.
-- **Phase 3 — time**: `Duration`, `TimeWithZone`, `TimeZone`, time-travel
-  helpers, `Date`/`Time`/`DateTime` core-ext.
-- **Phase 4 — instrumentation & data**: `Notifications`, `Cache`, `Benchmark`,
-  JSON encoding (`as_json`/`to_json`), `MessageEncryptor`/`MessageVerifier`.
-- **Phase 5 — number & remaining core-ext**: `NumberHelper` (`to_s(:delimited/
-  :rounded/:human/…)`), the long tail of String/Enumerable/Range extensions.
+- **Object model needing dispatch**: `Concern`, `delegate`, `Configurable`,
+  `Module#delegate_missing_to` — these mix into the Ruby module/method system and
+  belong in the rbgo binding, not a standalone Go package.
+- **Time-with-zone**: `TimeWithZone` and the full `TimeZone` MAPPING (the
+  `Duration` calendar/format core and `Since`/`Ago` anchoring ship in the
+  [`duration`](duration) package; the friendly-name↔IANA zone table and a
+  zone-aware wrapper type remain).
+- **Data/crypto**: JSON encoding (`as_json`/`to_json`),
+  `MessageEncryptor`/`MessageVerifier`, `Benchmark`.
+- **Remaining core-ext long tail**: the less-used `Date`/`Time`/`DateTime`,
+  `Range` and `Integer` extensions beyond those already in `coreext`.
 
 ## Install
 
