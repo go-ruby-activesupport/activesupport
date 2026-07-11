@@ -121,43 +121,43 @@ func TestStripInsignificantZeros(t *testing.T) {
 func TestDelimited(t *testing.T) {
 	eq(t, NumberToDelimited(12345678), "12,345,678", "int")
 	eq(t, NumberToDelimited(12345678.05), "12,345,678.05", "float")
-	eq(t, NumberToDelimited(12345678, Options{Delimiter: strPtr("."), Separator: strPtr(",")}), "12.345.678", "euro")
+	eq(t, NumberToDelimited(12345678, Options{Delimiter: StrPtr("."), Separator: StrPtr(",")}), "12.345.678", "euro")
 	eq(t, NumberToDelimited("abc"), "abc", "invalid")
 }
 
 func TestRounded(t *testing.T) {
 	eq(t, NumberToRounded(111.2345), "111.235", "default")
-	eq(t, NumberToRounded(111.2345, Options{Precision: intPtr(2)}), "111.23", "p2")
-	eq(t, NumberToRounded(389.32314, Options{Precision: intPtr(0)}), "389", "p0")
-	eq(t, NumberToRounded(13, Options{Precision: intPtr(5), Significant: boolPtr(true)}), "13.000", "sig5")
-	eq(t, NumberToRounded(13.0, Options{Precision: intPtr(5), Significant: boolPtr(true), StripInsignificantZeros: boolPtr(true)}), "13", "sig strip")
-	eq(t, NumberToRounded(1234.5678, Options{Precision: intPtr(2), Significant: boolPtr(true)}), "1200", "sig2")
+	eq(t, NumberToRounded(111.2345, Options{Precision: IntPtr(2)}), "111.23", "p2")
+	eq(t, NumberToRounded(389.32314, Options{Precision: IntPtr(0)}), "389", "p0")
+	eq(t, NumberToRounded(13, Options{Precision: IntPtr(5), Significant: BoolPtr(true)}), "13.000", "sig5")
+	eq(t, NumberToRounded(13.0, Options{Precision: IntPtr(5), Significant: BoolPtr(true), StripInsignificantZeros: BoolPtr(true)}), "13", "sig strip")
+	eq(t, NumberToRounded(1234.5678, Options{Precision: IntPtr(2), Significant: BoolPtr(true)}), "1200", "sig2")
 	eq(t, NumberToRounded("nonnum"), "nonnum", "invalid")
 	eq(t, NumberToRounded(math.Inf(1)), "Inf", "inf")
 	eq(t, NumberToRounded(math.Inf(-1)), "-Inf", "-inf")
 	eq(t, NumberToRounded(math.NaN()), "NaN", "nan")
-	eq(t, NumberToRounded(math.Inf(1), Options{StripInsignificantZeros: boolPtr(true)}), "Inf", "inf strip")
+	eq(t, NumberToRounded(math.Inf(1), Options{StripInsignificantZeros: BoolPtr(true)}), "Inf", "inf strip")
 }
 
 func TestPercentage(t *testing.T) {
 	eq(t, NumberToPercentage(100), "100.000%", "default")
-	eq(t, NumberToPercentage(100, Options{Precision: intPtr(0)}), "100%", "p0")
-	eq(t, NumberToPercentage(1000, Options{Delimiter: strPtr("."), Separator: strPtr(",")}), "1.000,000%", "euro")
+	eq(t, NumberToPercentage(100, Options{Precision: IntPtr(0)}), "100%", "p0")
+	eq(t, NumberToPercentage(1000, Options{Delimiter: StrPtr("."), Separator: StrPtr(",")}), "1.000,000%", "euro")
 	eq(t, NumberToPercentage("abc"), "abc%", "invalid")
 }
 
 func TestCurrency(t *testing.T) {
 	eq(t, NumberToCurrency(1234567890.50), "$1,234,567,890.50", "default")
-	eq(t, NumberToCurrency(1234567890.506, Options{Precision: intPtr(3)}), "$1,234,567,890.506", "p3")
-	eq(t, NumberToCurrency(1234567890.50, Options{Unit: strPtr("&pound;"), Separator: strPtr(","), Delimiter: strPtr("")}), "&pound;1234567890,50", "pound")
-	eq(t, NumberToCurrency(-1234567890.50, Options{NegativeFormat: strPtr("(%u%n)")}), "($1,234,567,890.50)", "neg fmt")
-	eq(t, NumberToCurrency(1234567890.50, Options{Format: strPtr("%n %u")}), "1,234,567,890.50 $", "fmt")
+	eq(t, NumberToCurrency(1234567890.506, Options{Precision: IntPtr(3)}), "$1,234,567,890.506", "p3")
+	eq(t, NumberToCurrency(1234567890.50, Options{Unit: StrPtr("&pound;"), Separator: StrPtr(","), Delimiter: StrPtr("")}), "&pound;1234567890,50", "pound")
+	eq(t, NumberToCurrency(-1234567890.50, Options{NegativeFormat: StrPtr("(%u%n)")}), "($1,234,567,890.50)", "neg fmt")
+	eq(t, NumberToCurrency(1234567890.50, Options{Format: StrPtr("%n %u")}), "1,234,567,890.50 $", "fmt")
 	eq(t, NumberToCurrency("abc"), "$abc", "invalid")
 	eq(t, NumberToCurrency("-abc"), "-$abc", "invalid neg")
 	eq(t, NumberToCurrency(-0.0001), "$0.00", "tiny neg positive")
 	eq(t, NumberToCurrency(-0.006), "-$0.01", "small neg")
-	eq(t, NumberToCurrency(1234.5, Options{Significant: boolPtr(true), Precision: intPtr(2)}), "$1,200", "significant")
-	eq(t, NumberToCurrency(-5, Options{Format: strPtr("%u%n")}), "-$5.00", "explicit fmt neg")
+	eq(t, NumberToCurrency(1234.5, Options{Significant: BoolPtr(true), Precision: IntPtr(2)}), "$1,200", "significant")
+	eq(t, NumberToCurrency(-5, Options{Format: StrPtr("%u%n")}), "-$5.00", "explicit fmt neg")
 }
 
 func TestAbsFloat(t *testing.T) {
@@ -169,7 +169,7 @@ func TestAbsFloat(t *testing.T) {
 func TestHumanSize(t *testing.T) {
 	eq(t, NumberToHumanSize(1234567), "1.18 MB", "mb")
 	eq(t, NumberToHumanSize(1234567890123), "1.12 TB", "tb")
-	eq(t, NumberToHumanSize(483989, Options{Precision: intPtr(2)}), "470 KB", "kb p2")
+	eq(t, NumberToHumanSize(483989, Options{Precision: IntPtr(2)}), "470 KB", "kb p2")
 	eq(t, NumberToHumanSize(0), "0 Bytes", "zero")
 	eq(t, NumberToHumanSize(123), "123 Bytes", "bytes")
 	eq(t, NumberToHumanSize(1024), "1 KB", "1kb")
@@ -184,25 +184,25 @@ func TestHumanSize(t *testing.T) {
 func TestHuman(t *testing.T) {
 	eq(t, NumberToHuman(123456), "123 Thousand", "thousand")
 	eq(t, NumberToHuman(1234567), "1.23 Million", "million")
-	eq(t, NumberToHuman(489939, Options{Precision: intPtr(2)}), "490 Thousand", "p2")
-	eq(t, NumberToHuman(1234567, Options{Precision: intPtr(4), Significant: boolPtr(false)}), "1.2346 Million", "nosig")
+	eq(t, NumberToHuman(489939, Options{Precision: IntPtr(2)}), "490 Thousand", "p2")
+	eq(t, NumberToHuman(1234567, Options{Precision: IntPtr(4), Significant: BoolPtr(false)}), "1.2346 Million", "nosig")
 	eq(t, NumberToHuman(0), "0", "zero")
 	eq(t, NumberToHuman(123), "123", "small")
 	eq(t, NumberToHuman(-123456), "-123 Thousand", "neg")
 	eq(t, NumberToHuman(1234567, Options{Units: map[string]string{"unit": "", "thousand": "K", "bogus": "Z"}}), "1230 K", "units override")
 	eq(t, NumberToHuman(1000000000000000000000.0), "1000000 Quadrillion", "quad")
 	eq(t, NumberToHuman("abc"), "abc", "invalid")
-	eq(t, NumberToHuman(1234567, Options{Format: strPtr("%n%u")}), "1.23Million", "format")
+	eq(t, NumberToHuman(1234567, Options{Format: StrPtr("%n%u")}), "1.23Million", "format")
 }
 
 func TestPhone(t *testing.T) {
 	eq(t, NumberToPhone(5551234), "555-1234", "basic")
 	eq(t, NumberToPhone(1235551234, Options{AreaCode: true}), "(123) 555-1234", "area")
-	eq(t, NumberToPhone(1235551234, Options{Delimiter: strPtr(" ")}), "123 555 1234", "delim")
+	eq(t, NumberToPhone(1235551234, Options{Delimiter: StrPtr(" ")}), "123 555 1234", "delim")
 	eq(t, NumberToPhone(1235551234, Options{CountryCode: 1}), "+1-123-555-1234", "cc")
 	eq(t, NumberToPhone("123a456"), "123a456", "invalid")
 	eq(t, NumberToPhone(1235551234, Options{AreaCode: true, Extension: 555}), "(123) 555-1234 x 555", "ext")
-	eq(t, NumberToPhone(1235551234, Options{Delimiter: strPtr("")}), "1235551234", "no delim")
+	eq(t, NumberToPhone(1235551234, Options{Delimiter: StrPtr("")}), "1235551234", "no delim")
 	// Custom patterns (area and no-area).
 	pat := regexp.MustCompile(`([0-9]{3})([0-9]{3})([0-9]{4})$`)
 	eq(t, NumberToPhone(1235551234, Options{Pattern: pat}), "123-555-1234", "custom pattern")

@@ -50,9 +50,9 @@ type Options struct {
 	Pattern     *regexp.Regexp
 }
 
-func intPtr(i int) *int       { return &i }
-func boolPtr(b bool) *bool    { return &b }
-func strPtr(s string) *string { return &s }
+func IntPtr(i int) *int       { return &i }
+func BoolPtr(b bool) *bool    { return &b }
+func StrPtr(s string) *string { return &s }
 func orInt(p *int, d int) int {
 	if p != nil {
 		return *p
