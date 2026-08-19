@@ -183,3 +183,59 @@ func TestOrderedOptions(t *testing.T) {
 		t.Error("delete")
 	}
 }
+
+// NewFromPairs and NewFrom's ordering are asserted here rather than only in the
+// oracle test: the oracle skips itself wherever ruby or the activesupport gem
+// is missing, and coverage measured on such a lane would drop below the gate.
+func TestNewFromPairsKeepsTheStatedOrder(t *testing.T) {
+	h := NewFromPairs(
+		Pair{"b", 1},
+		Pair{"a", 2},
+		Pair{"c", map[string]any{"nested": 3}},
+	)
+	if got, want := h.Keys(), []string{"b", "a", "c"}; !equalStrings(got, want) {
+		t.Errorf("Keys() = %v, want %v", got, want)
+	}
+	// Values are converted recursively, exactly as NewFrom does.
+	nested, ok := h.Get("c").(*Hash)
+	if !ok {
+		t.Fatalf("Get(\"c\") = %T, want *Hash", h.Get("c"))
+	}
+	if got := nested.Get("nested"); got != 3 {
+		t.Errorf("nested value = %v, want 3", got)
+	}
+}
+
+// A repeated key keeps its first position and takes the last value, as in Ruby.
+func TestNewFromPairsRepeatedKey(t *testing.T) {
+	h := NewFromPairs(Pair{"a", 1}, Pair{"b", 2}, Pair{"a", 9})
+	if got, want := h.Keys(), []string{"a", "b"}; !equalStrings(got, want) {
+		t.Errorf("Keys() = %v, want %v", got, want)
+	}
+	if got := h.Get("a"); got != 9 {
+		t.Errorf("Get(\"a\") = %v, want the later value 9", got)
+	}
+}
+
+// NewFrom sorts, because a Go map has no order to preserve. Asserted over many
+// constructions so a lucky map iteration cannot pass for determinism.
+func TestNewFromSortsItsKeys(t *testing.T) {
+	for i := 0; i < 200; i++ {
+		h := NewFrom(map[string]any{"delta": 4, "alpha": 1, "charlie": 3, "bravo": 2})
+		if got, want := h.Keys(), []string{"alpha", "bravo", "charlie", "delta"}; !equalStrings(got, want) {
+			t.Fatalf("iteration %d: Keys() = %v, want %v", i, got, want)
+		}
+	}
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
