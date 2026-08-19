@@ -14,7 +14,11 @@
 // nested map. Insertion order is preserved (Ruby hashes are ordered).
 package hwia
 
-import "github.com/go-ruby-activesupport/activesupport/coreext"
+import (
+	"sort"
+
+	"github.com/go-ruby-activesupport/activesupport/coreext"
+)
 
 // Hash is a string-keyed, insertion-ordered map with indifferent (string/symbol)
 // access and recursive nested-hash conversion (HashWithIndifferentAccess).
@@ -29,15 +33,46 @@ func New() *Hash {
 }
 
 // NewFrom builds a Hash from a plain map, converting values recursively.
+//
+// A Go map has no order, and `for k := range m` is deliberately randomised, so
+// there is no insertion order here to preserve -- only one to invent. The keys
+// are therefore sorted, which is the only choice that gives the same Hash twice
+// for the same input.
+//
+// Ruby's `{a: 1, b: 2}` DOES carry an order, and it is observable through
+// #keys, #values and #each. Use NewFromPairs when that order matters; NewFrom
+// cannot recover it from a map literal, however the literal was written.
 func NewFrom(src map[string]any) *Hash {
 	h := New()
-	for k, v := range src {
-		h.Set(k, v)
+	keys := make([]string, 0, len(src))
+	for k := range src {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		h.Set(k, src[k])
 	}
 	return h
 }
 
-// convertValue recursively converts nested hashes to *Hash and maps over arrays,
+// Pair is one key/value entry, used to build a Hash in a stated order.
+type Pair struct {
+	Key   string
+	Value any
+}
+
+// NewFromPairs builds a Hash in the order given, which is what a Ruby hash
+// literal does. Values are converted recursively, exactly as in NewFrom. A
+// repeated key keeps its first position and takes the last value, matching
+// Ruby.
+func NewFromPairs(pairs ...Pair) *Hash {
+	h := New()
+	for _, p := range pairs {
+		h.Set(p.Key, p.Value)
+	}
+	return h
+}
+
 // matching HashWithIndifferentAccess#convert_value.
 func convertValue(v any) any {
 	switch t := v.(type) {
