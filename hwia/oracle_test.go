@@ -39,7 +39,15 @@ func TestOracleHWIA(t *testing.T) {
 	bin := rubyWithActiveSupport(t)
 	// h = { a: 1, b: { c: 2 } }
 	build := `ActiveSupport::HashWithIndifferentAccess.new({a: 1, b: {c: 2}})`
-	h := NewFrom(map[string]any{"a": 1, "b": map[string]any{"c": 2}})
+	// Built through NewFromPairs, not from a map literal: Ruby's literal carries
+	// an order that #keys exposes, and a Go map does not have one to carry. The
+	// map-literal form made this test a coin flip -- 12 fresh processes gave
+	// [a b] nine times and [b a] three times -- and it finally landed the wrong
+	// way on CI.
+	h := NewFromPairs(
+		Pair{"a", 1},
+		Pair{"b", map[string]any{"c": 2}},
+	)
 
 	cases := []struct{ got, expr string }{
 		{fmt.Sprint(h.Get("a")), build + `["a"].to_s`},
@@ -50,7 +58,7 @@ func TestOracleHWIA(t *testing.T) {
 		{fmt.Sprint(h.Keys()), rubyArray(build + `.keys`)},
 		{fmt.Sprint(h.Slice("a").Keys()), rubyArray(build + `.slice(:a).keys`)},
 		{fmt.Sprint(h.Except("a").Keys()), rubyArray(build + `.except(:a).keys`)},
-		{fmt.Sprint(h.Merge(NewFrom(map[string]any{"d": 4})).Keys()), rubyArray(build + `.merge(d: 4).keys`)},
+		{fmt.Sprint(h.Merge(NewFromPairs(Pair{"d", 4})).Keys()), rubyArray(build + `.merge(d: 4).keys`)},
 	}
 	for _, c := range cases {
 		if want := ruby(t, bin, c.expr); c.got != want {
